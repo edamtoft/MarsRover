@@ -47,8 +47,9 @@ MMRMMRMRRM</textarea>
   commandsForm.addEventListener("submit", e => {
     e.preventDefault();
     plateau.clear();
-    plateau.execute(commandsInput.value)
-      .then(() => alert(plateau.getRoverPositions().join("\n")));
+    plateau
+      .execute(commandsInput.value)
+      .then(rovers => alert(rovers.map(r => r.toString()).join("\n")));
   });
   </script>
 </body>

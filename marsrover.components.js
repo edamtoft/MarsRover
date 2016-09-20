@@ -32,21 +32,21 @@ document.registerElement("mars-plateau", class extends HTMLElement
 
   _keyPressed(keyCode) {
     if (keyCode == 78) { this.createRover(0,0,"N"); return; } //N
-    const rovers = this.rovers;
-    const activeRover = rovers[rovers.length-1];
-    if (!activeRover) return;
     const action = (() => {
       switch (keyCode) {
         case 76: return r => r.turnLeft(); //L
-        case 77: return r => r.move(); //R
-        case 82: return r => r.turnRight(); //M
+        case 77: return r => r.move(); //M
+        case 82: return r => r.turnRight(); //R
         default: return null;
       }
     })();
-    if (action) action(activeRover);
+    if (!action) return;
+    const activeRover = this.rovers[rovers.length-1];
+    if (!activeRover) return;
+    action(activeRover);
   }
 
-  get rovers() { return this.getElementsByTagName("mars-rover"); }
+  get rovers() { return Array.from(this.getElementsByTagName("mars-rover")); }
 
   get scale() { return Number(this.dataset.scale) || 50; }
 
@@ -81,6 +81,12 @@ document.registerElement("mars-plateau", class extends HTMLElement
     return this.createRover(x,y,heading);
   }
 
+  parseRoverCommandSet(position, commands) {
+    return this.parseRover(position)
+      .processCommands(commands)
+      .catch(err => console.error(err));
+  }
+
   execute(string) {
     const lines = string.split(/\n/g);
     const plateauSizeRegex = /(\d+) (\d+)/;
@@ -89,26 +95,16 @@ document.registerElement("mars-plateau", class extends HTMLElement
     this.size = new Coordinate(x,y);
     const actions = [];
     for (var i = 0; i < roverCommands.length; i+=2) {
-      const position = roverCommands[i];
-      const commands = roverCommands[i+1];
-      if (!position || !commands) continue;
-      actions.push(this.parseRover(position).processCommands(commands).catch(err => console.error(err)));
+      const position = roverCommands[i], commands = roverCommands[i+1];
+      actions.push(this.parseRoverCommandSet(position,commands));
     }
-    return Promise.all(actions);
+    return Promise.all(actions).then(() => this.rovers);
   }
 
   clear() {
     while(this.firstChild) {
       this.removeChild(this.firstChild);
     }
-  }
-
-  getRoverPositions() {
-    const parts = [];
-    for (let rover of this.rovers) {
-      parts.push(rover.toString());
-    }
-    return parts;
   }
 });
 
@@ -118,10 +114,6 @@ document.registerElement("mars-rover", class extends HTMLElement
     super();
     this._isMoving = false;
   }
-
-  //
-  // Properties
-  //
 
   get heading() { return Number(this.dataset.heading||0); }
   set heading(degrees) { this.dataset.heading=degrees; }
@@ -133,7 +125,7 @@ document.registerElement("mars-rover", class extends HTMLElement
     this.dataset.y = y;
   }
 
-  get crashed() { return this.dataset.crashed; }
+  get crashed() { return Boolean(this.dataset.crashed); }
 
   get plateau() { return this.parentElement; }
 
@@ -164,10 +156,6 @@ document.registerElement("mars-rover", class extends HTMLElement
       `${x} ${y} ${cardinalDirection}`;
   }
 
-  //
-  // Movements
-  //
-
   turnLeft() { return this.turn(-90); }
   turnRight() { return this.turn(90); }
 
@@ -178,7 +166,8 @@ document.registerElement("mars-rover", class extends HTMLElement
     console.debug(`Moving forward.`);
     const initialPosition = this.position;
     const heading = this.heading;
-    return this._animate(progress => this.position = initialPosition.at(heading, progress)).then(() => this._isMoving = false);
+    return this._animate(progress => this.position = initialPosition.at(heading, progress))
+      .then(() => this._isMoving = false);
   }
 
   turn(degrees)
@@ -188,12 +177,9 @@ document.registerElement("mars-rover", class extends HTMLElement
     if (this.crashed) throw new Error("Rover is crashed. Cannot move");
     console.debug(`Turning ${degrees}deg.`);
     const initialHeading = this.heading;
-    return this._animate(progress => this.heading = initialHeading + (degrees*progress)).then(() => this._isMoving = false);
+    return this._animate(progress => this.heading = initialHeading + (degrees*progress))
+      .then(() => this._isMoving = false);
   }
-
-  //
-  // animate
-  //
 
   _animate(onNext) {
     const duration = Number(this.plateau.dataset.animationDuration) || 500;
@@ -214,17 +200,11 @@ document.registerElement("mars-rover", class extends HTMLElement
     });
   }
 
-  //
-  // Commands
-  //
-
   processCommands(commands) {
     const [first, ...rest] = commands;
-    if (!first) return Promise.resolve(); // nothing to do
+    if (!first) return Promise.resolve(this); // nothing to do
     return this.processCommand(first)
-      .then(() => rest.length > 0 ? 
-        this.processCommands(rest) : 
-        Promise.resolve());
+      .then(() => rest.length > 0 ? this.processCommands(rest) :  Promise.resolve(this));
   }
 
   processCommand(command) {
