@@ -1,0 +1,30 @@
+body {
+  font-family: Arial, sans-serif;
+  color: #222;
+}
+mars-plateau {
+  display: block;
+  background-color: #FFA07A;
+  position: relative;
+  background-size: 50px 50px;
+  background-image: linear-gradient(to right, #808080 1px, rgba(0, 0, 0, 0) 1px), linear-gradient(to bottom, #808080 1px, rgba(0, 0, 0, 0) 1px);
+}
+mars-rover {
+  display: block;
+  background-color: #666;
+  color: #eee;
+  height: 50px;
+  width: 50px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  text-align: center;
+  line-height: 50px;
+}
+mars-rover[data-crashed=true] {
+  background-color: red;
+  animation: shake 500ms;
+}
+mars-rover::after {
+  content: 'NASA';
+}
