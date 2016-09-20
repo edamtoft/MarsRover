@@ -41,7 +41,8 @@ document.registerElement("mars-plateau", class extends HTMLElement
       }
     })();
     if (!action) return;
-    const activeRover = this.rovers[rovers.length-1];
+    const rovers = this.rovers;
+    const activeRover = rovers[rovers.length-1];
     if (!activeRover) return;
     action(activeRover);
   }
